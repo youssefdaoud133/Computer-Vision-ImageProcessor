@@ -27,21 +27,30 @@ MainFrame::MainFrame(const wxString& title, const wxPoint& pos, const wxSize& si
     wxPanel* panel = new wxPanel(this, wxID_ANY);
     wxBoxSizer* vbox = new wxBoxSizer(wxVERTICAL);
 
-    m_introText = new wxStaticText(panel, wxID_ANY, wxT("Click below to upload images.\nEach image will open in a new window."));
+    m_introText = new wxStaticText(panel, wxID_ANY, wxT("Click below to upload images.\nEach image will open in a new window."), wxDefaultPosition, wxDefaultSize, wxALIGN_CENTER_HORIZONTAL);
     wxFont font = m_introText->GetFont();
     font.SetPointSize(14);
     font.MakeBold();
     m_introText->SetFont(font);
 
-    m_uploadBtn = new wxButton(panel, ID_UPLOAD, "Upload Images");
+    m_uploadBtn = new wxButton(panel, ID_UPLOAD, "Upload Images", wxDefaultPosition, wxSize(200, 50));
     wxFont btnFont = m_uploadBtn->GetFont();
     btnFont.SetPointSize(12);
     m_uploadBtn->SetFont(btnFont);
 
-    vbox->Add(m_introText, 1, wxALIGN_CENTER_HORIZONTAL | wxALL | wxEXPAND, 50);
-    vbox->Add(m_uploadBtn, 0, wxALIGN_CENTER_HORIZONTAL | wxBOTTOM, 50);
+    // Use spacers to center elements vertically
+    vbox->AddStretchSpacer(1);
+    vbox->Add(m_introText, 0, wxALIGN_CENTER_HORIZONTAL | wxALL, 20);
+    vbox->Add(m_uploadBtn, 0, wxALIGN_CENTER_HORIZONTAL | wxALL, 20);
+    vbox->AddStretchSpacer(1);
 
     panel->SetSizer(vbox);
+
+    // Set a sizer for the frame to manage the panel correctly
+    wxBoxSizer* frameSizer = new wxBoxSizer(wxVERTICAL);
+    frameSizer->Add(panel, 1, wxEXPAND);
+    SetSizer(frameSizer);
+
     Centre();
 }
 

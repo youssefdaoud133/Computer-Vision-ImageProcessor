@@ -1,0 +1,6 @@
+[ 20%] Linking CXX executable ImageProcessor.exe
+C:/msys64/ucrt64/bin/../lib/gcc/x86_64-w64-mingw32/14.2.0/../../../../x86_64-w64-mingw32/bin/ld.exe: cannot open output file ImageProcessor.exe: Permission denied
+collect2.exe: error: ld returned 1 exit status
+mingw32-make[2]: *** [CMakeFiles\ImageProcessor.dir\build.make:155: ImageProcessor.exe] Error 1
+mingw32-make[1]: *** [CMakeFiles\Makefile2:86: CMakeFiles/ImageProcessor.dir/all] Error 2
+mingw32-make: *** [Makefile:90: all] Error 2

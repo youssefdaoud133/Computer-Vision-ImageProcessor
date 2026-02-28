@@ -46,6 +46,11 @@ private:
      * @param event The wxCommandEvent triggered by the button.
      */
     void OnFilterInvert(wxCommandEvent& event);
+    void OnFilterSobel(wxCommandEvent& event);
+    void OnFilterRoberts(wxCommandEvent& event);
+    void OnFilterPrewitt(wxCommandEvent& event);
+    void OnFilterCanny(wxCommandEvent& event);
+    void OnViewHistogram(wxCommandEvent& event);
 
     // Setup event table
     wxDECLARE_EVENT_TABLE();
@@ -61,7 +66,12 @@ enum {
     ID_RESET = 100,
     ID_FILTER_GRAYSCALE,
     ID_FILTER_BLUR,
-    ID_FILTER_INVERT
+    ID_FILTER_INVERT,
+    ID_FILTER_SOBEL,
+    ID_FILTER_ROBERTS,
+    ID_FILTER_PREWITT,
+    ID_FILTER_CANNY,
+    ID_VIEW_HISTOGRAM
 };
 
 #endif // IMAGEFRAME_H
