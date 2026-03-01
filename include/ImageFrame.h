@@ -2,6 +2,7 @@
 #define IMAGEFRAME_H
 
 #include <wx/wx.h>
+#include <vector>
 #include "ImagePanel.h"
 
 /**
@@ -22,6 +23,20 @@ private:
      * @brief Constructs the UI Toolbar containing filters.
      */
     void CreateFilterToolbar();
+
+    /**
+     * @brief Returns true if m_imagePanel is valid and ready to use.
+     *        Used as a guard at the top of every event handler.
+     */
+    bool PanelReady() const;
+
+    /**
+     * @brief Opens two popup windows showing the X and Y direction gradients,
+     *        and displays the magnitude in the main panel.
+     * @param results Vector of {magnitude, gradX, gradY} images from edge detectors.
+     * @param filterName Name shown in the popup window titles (e.g. "Sobel").
+     */
+    void ShowEdgeWindows(const std::vector<wxImage>& results, const wxString& filterName);
 
     /**
      * @brief Restores the image back to its original unmodified state.
@@ -46,6 +61,7 @@ private:
      * @param event The wxCommandEvent triggered by the button.
      */
     void OnFilterInvert(wxCommandEvent& event);
+
     void OnFilterSobel(wxCommandEvent& event);
     void OnFilterRoberts(wxCommandEvent& event);
     void OnFilterPrewitt(wxCommandEvent& event);
@@ -54,7 +70,7 @@ private:
 
     // Setup event table
     wxDECLARE_EVENT_TABLE();
-    
+
     // UI elements
     ImagePanel* m_imagePanel;
     wxToolBar*  m_toolbar;

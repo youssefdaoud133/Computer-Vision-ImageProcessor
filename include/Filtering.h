@@ -7,19 +7,23 @@
 class Filtering {
 public:
     // Edge Detection Algorithms (Scratch)
-    static wxImage ApplySobel(const wxImage& image);
-    static wxImage ApplyRoberts(const wxImage& image);
-    static wxImage ApplyPrewitt(const wxImage& image);
+    // Returns {magnitude, gradX, gradY}
+    static std::vector<wxImage> ApplySobel(const wxImage& image);
+    static std::vector<wxImage> ApplyRoberts(const wxImage& image);
+    static std::vector<wxImage> ApplyPrewitt(const wxImage& image);
 
-    // Edge Detection (OpenCV)
+    // Edge Detection (OpenCV) — single result, no X/Y split required
     static wxImage ApplyCanny(const wxImage& image);
 
     // Histogram Utilities
-    static std::vector<int> GetHistogram(const wxImage& image);
+    static std::vector<int>    GetHistogram(const wxImage& image);
     static std::vector<double> GetDistributionCurve(const std::vector<int>& histogram);
 
 private:
-    static wxImage ApplyMatrix(const wxImage& image, const std::vector<std::vector<int>>& kernelX, const std::vector<std::vector<int>>& kernelY);
+    // Returns {magnitude, gradX, gradY}
+    static std::vector<wxImage> ApplyMatrix(const wxImage& image,
+                                             const std::vector<std::vector<int>>& kernelX,
+                                             const std::vector<std::vector<int>>& kernelY);
 };
 
 #endif // FILTERING_H
