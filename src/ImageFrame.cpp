@@ -1,4 +1,5 @@
 #include "ImageFrame.h"
+#include "HistogramFrame.h"
 #include <wx/sizer.h>
 #include <wx/toolbar.h>
 #include <wx/artprov.h>
@@ -8,6 +9,7 @@ wxBEGIN_EVENT_TABLE(ImageFrame, wxFrame)
     EVT_TOOL(ID_FILTER_GRAYSCALE, ImageFrame::OnFilterGrayscale)
     EVT_TOOL(ID_FILTER_BLUR, ImageFrame::OnFilterBlur)
     EVT_TOOL(ID_FILTER_INVERT, ImageFrame::OnFilterInvert)
+    EVT_TOOL(ID_HISTOGRAM, ImageFrame::OnHistogram)
 wxEND_EVENT_TABLE()
 
 ImageFrame::ImageFrame(const wxString& title, const wxString& imagePath)
@@ -42,11 +44,13 @@ void ImageFrame::CreateFilterToolbar() {
     wxBitmap bmpGray = wxArtProvider::GetBitmap(wxART_TICK_MARK, wxART_TOOLBAR);
     wxBitmap bmpBlur = wxArtProvider::GetBitmap(wxART_CROSS_MARK, wxART_TOOLBAR);
     wxBitmap bmpInv = wxArtProvider::GetBitmap(wxART_WARNING, wxART_TOOLBAR);
+    wxBitmap bmpHist = wxArtProvider::GetBitmap(wxART_REPORT_VIEW, wxART_TOOLBAR);
 
     m_toolbar->AddTool(ID_RESET, "Reset", bmpReset, "Reset to Original Image");
     m_toolbar->AddTool(ID_FILTER_GRAYSCALE, "Grayscale", bmpGray, "Apply Grayscale Filter");
     m_toolbar->AddTool(ID_FILTER_BLUR, "Blur", bmpBlur, "Apply Blur Filter");
     m_toolbar->AddTool(ID_FILTER_INVERT, "Invert", bmpInv, "Apply Invert Image Filter");
+    m_toolbar->AddTool(ID_HISTOGRAM, "Histogram", bmpHist, "Show RGB Histogram");
 
     m_toolbar->Realize();
 }
@@ -101,5 +105,15 @@ void ImageFrame::OnFilterInvert(wxCommandEvent& event) {
         
         m_imagePanel->SetImage(current);
         SetStatusText("Applied Invert Colors filter.");
+    }
+}
+
+void ImageFrame::OnHistogram(wxCommandEvent& event) {
+    if (!m_imagePanel) return;
+
+    wxImage current = m_imagePanel->GetCurrentImage();
+    if (current.IsOk()) {
+        HistogramFrame* histFrame = new HistogramFrame(this, "RGB Histogram", current);
+        histFrame->Show(true);
     }
 }

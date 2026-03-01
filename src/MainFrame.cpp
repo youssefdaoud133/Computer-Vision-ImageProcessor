@@ -38,7 +38,7 @@ MainFrame::MainFrame(const wxString& title, const wxPoint& pos, const wxSize& si
     btnFont.SetPointSize(12);
     m_uploadBtn->SetFont(btnFont);
 
-    vbox->Add(m_introText, 1, wxALIGN_CENTER_HORIZONTAL | wxALL | wxEXPAND, 50);
+    vbox->Add(m_introText, 1, wxALL | wxEXPAND, 50);
     vbox->Add(m_uploadBtn, 0, wxALIGN_CENTER_HORIZONTAL | wxBOTTOM, 50);
 
     panel->SetSizer(vbox);
