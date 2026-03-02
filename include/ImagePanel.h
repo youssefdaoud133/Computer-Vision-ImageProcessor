@@ -8,7 +8,11 @@
  * @class ImagePanel
  * @brief Custom wxPanel handling the drawing of an image with resizing behavior.
  *
- * It stores an internal wxImage and handles OnPaint events.
+ * This class manages image display with the following features:
+ * - Loads images from file path
+ * - Maintains original image for reset functionality
+ * - Handles dynamic resizing while preserving aspect ratio
+ * - Supports filter application through SetImage method
  */
 class ImagePanel : public wxPanel {
 public:
@@ -16,24 +20,28 @@ public:
      * @brief Constructs an ImagePanel to view the given image.
      * @param parent The parent wxWindow containing the panel.
      * @param filePath The local path to the image file to be loaded.
+     *                 Can be empty string if image will be set via SetImage().
      */
     ImagePanel(wxWindow* parent, const wxString& filePath);
 
     /**
      * @brief Updates the currently displayed image.
      * @param newImage The modified wxImage to replace the current display.
+     * 
+     * This method also updates the original image if it hasn't been set yet,
+     * allowing the panel to work with images created programmatically.
      */
     void SetImage(const wxImage& newImage);
 
     /**
      * @brief Returns the original image without any modifications.
-     * @return The original wxImage loaded from file.
+     * @return The original wxImage loaded from file or first set image.
      */
     wxImage GetOriginalImage() const;
 
     /**
      * @brief Returns the currently displayed image.
-     * @return The modified wxImage currently displayed.
+     * @return The modified wxImage currently being displayed.
      */
     wxImage GetCurrentImage() const;
 
@@ -45,10 +53,16 @@ private:
     void OnPaint(wxPaintEvent& event);
     
     /**
-     * @brief Helper to deal with preserving aspect ratio when resizing
+     * @brief Helper to deal with preserving aspect ratio when resizing.
      * @param event The triggered wxSizeEvent.
      */
     void OnSize(wxSizeEvent& event);
+
+    /**
+     * @brief Updates the scaled bitmap cache based on current panel size.
+     * Called when image changes or panel is resized.
+     */
+    void UpdateScaledBitmap();
 
     wxImage m_originalImage;    // The original unmodified image
     wxImage m_currentImage;     // The currently displayed (potentially filtered) image
