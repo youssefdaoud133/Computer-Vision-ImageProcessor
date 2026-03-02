@@ -1,11 +1,14 @@
 #include "MainFrame.h"
 #include "ImageFrame.h"
+#include "Filtering.h"
 #include <wx/filedlg.h>
 #include <wx/sizer.h>
 #include <wx/filename.h>
+#include <wx/choice.h>
 
 wxBEGIN_EVENT_TABLE(MainFrame, wxFrame)
     EVT_BUTTON(ID_UPLOAD, MainFrame::OnUploadClicked)
+    EVT_BUTTON(ID_HYBRID, MainFrame::OnHybridClicked)
     EVT_MENU(wxID_EXIT, MainFrame::OnExit)
 wxEND_EVENT_TABLE()
 
@@ -38,10 +41,14 @@ MainFrame::MainFrame(const wxString& title, const wxPoint& pos, const wxSize& si
     btnFont.SetPointSize(12);
     m_uploadBtn->SetFont(btnFont);
 
+    m_hybridBtn = new wxButton(panel, ID_HYBRID, "Hybrid Image", wxDefaultPosition, wxSize(200, 50));
+    m_hybridBtn->SetFont(btnFont);
+
     // Use spacers to center elements vertically
     vbox->AddStretchSpacer(1);
     vbox->Add(m_introText, 0, wxALIGN_CENTER_HORIZONTAL | wxALL, 20);
     vbox->Add(m_uploadBtn, 0, wxALIGN_CENTER_HORIZONTAL | wxALL, 20);
+    vbox->Add(m_hybridBtn, 0, wxALIGN_CENTER_HORIZONTAL | wxALL, 10);
     vbox->AddStretchSpacer(1);
 
     panel->SetSizer(vbox);
@@ -76,4 +83,109 @@ void MainFrame::OnUploadClicked(wxCommandEvent& event) {
 
 void MainFrame::OnExit(wxCommandEvent& event) {
     Close(true);
+}
+
+void MainFrame::OnHybridClicked(wxCommandEvent&) {
+    // --- Pick Image A ---
+    wxFileDialog dlgA(this, "Select Image A", "", "",
+        "Image files (*.png;*.jpg;*.jpeg;*.bmp)|*.png;*.jpg;*.jpeg;*.bmp",
+        wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+    if (dlgA.ShowModal() == wxID_CANCEL) return;
+    wxString pathA = dlgA.GetPath();
+
+    // --- Pick Image B ---
+    wxFileDialog dlgB(this, "Select Image B", "", "",
+        "Image files (*.png;*.jpg;*.jpeg;*.bmp)|*.png;*.jpg;*.jpeg;*.bmp",
+        wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+    if (dlgB.ShowModal() == wxID_CANCEL) return;
+    wxString pathB = dlgB.GetPath();
+
+    // --- Parameters dialog: choose roles + kernel/sigma ---
+    wxDialog paramDlg(this, wxID_ANY, "Hybrid Image Parameters",
+                      wxDefaultPosition, wxSize(420, 280));
+    wxBoxSizer* vs = new wxBoxSizer(wxVERTICAL);
+
+    // File labels
+    wxFileName fnA(pathA), fnB(pathB);
+    vs->Add(new wxStaticText(&paramDlg, wxID_ANY,
+        wxString::Format("A: %s\nB: %s", fnA.GetFullName(), fnB.GetFullName())),
+        0, wxALL, 10);
+
+    wxFlexGridSizer* gs = new wxFlexGridSizer(3, 2, 6, 10);
+    gs->AddGrowableCol(1);
+
+    // Role selector
+    wxArrayString roles;
+    roles.Add("A = Low-pass,  B = High-pass");
+    roles.Add("A = High-pass, B = Low-pass");
+    wxChoice* roleChoice = new wxChoice(&paramDlg, wxID_ANY, wxDefaultPosition,
+                                        wxDefaultSize, roles);
+    roleChoice->SetSelection(0);
+    gs->Add(new wxStaticText(&paramDlg, wxID_ANY, "Role:"), 0, wxALIGN_CENTER_VERTICAL);
+    gs->Add(roleChoice, 1, wxEXPAND);
+
+    // Kernel size
+    wxTextCtrl* tcKernel = new wxTextCtrl(&paramDlg, wxID_ANY, "21");
+    gs->Add(new wxStaticText(&paramDlg, wxID_ANY, "Kernel size (odd):"), 0, wxALIGN_CENTER_VERTICAL);
+    gs->Add(tcKernel, 1, wxEXPAND);
+
+    // Sigma
+    wxTextCtrl* tcSigma = new wxTextCtrl(&paramDlg, wxID_ANY, "5.0");
+    gs->Add(new wxStaticText(&paramDlg, wxID_ANY, "Sigma:"), 0, wxALIGN_CENTER_VERTICAL);
+    gs->Add(tcSigma, 1, wxEXPAND);
+
+    vs->Add(gs, 0, wxEXPAND | wxALL, 12);
+    vs->Add(paramDlg.CreateButtonSizer(wxOK | wxCANCEL), 0, wxEXPAND | wxALL, 8);
+    paramDlg.SetSizer(vs);
+    paramDlg.Centre();
+
+    if (paramDlg.ShowModal() != wxID_OK) return;
+
+    long kSize = 21;
+    double sigma = 5.0;
+    tcKernel->GetValue().ToLong(&kSize);
+    tcSigma->GetValue().ToDouble(&sigma);
+    if (kSize < 3) kSize = 3;
+    if (kSize > 51) kSize = 51;
+    if (kSize % 2 == 0) kSize += 1;  // ensure odd
+    if (sigma < 0.1) sigma = 0.1;
+
+    // Load images
+    wxImage imgA(pathA, wxBITMAP_TYPE_ANY);
+    wxImage imgB(pathB, wxBITMAP_TYPE_ANY);
+    if (!imgA.IsOk() || !imgB.IsOk()) {
+        wxMessageBox("Failed to load one or both images.", "Error", wxICON_ERROR);
+        return;
+    }
+
+    // Determine low-pass and high-pass sources based on role selection
+    wxImage lowSrc, highSrc;
+    if (roleChoice->GetSelection() == 0) {
+        // A = low, B = high
+        lowSrc  = imgA;
+        highSrc = imgB;
+    } else {
+        // A = high, B = low
+        lowSrc  = imgB;
+        highSrc = imgA;
+    }
+
+    SetStatusText("Computing Hybrid Image -- please wait...");
+    Update();
+
+    wxImage hybrid = Filtering::HybridImage(lowSrc, highSrc, (int)kSize, sigma);
+    if (!hybrid.IsOk()) {
+        wxMessageBox("Hybrid image generation failed.", "Error", wxICON_ERROR);
+        SetStatusText("Hybrid image failed.");
+        return;
+    }
+
+    // Save the result to a temp file and open it in an ImageFrame
+    wxString tmpPath = wxFileName::CreateTempFileName("hybrid");
+    tmpPath += ".png";
+    hybrid.SaveFile(tmpPath, wxBITMAP_TYPE_PNG);
+
+    ImageFrame* frame = new ImageFrame("Hybrid Image Result", tmpPath);
+    frame->Show(true);
+    SetStatusText("Hybrid image opened in new window.");
 }

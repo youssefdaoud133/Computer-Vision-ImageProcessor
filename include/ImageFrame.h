@@ -73,8 +73,23 @@ private:
     void OnFilterNormalize (wxCommandEvent& event);
     void OnViewHistogram   (wxCommandEvent& event);
 
-    // ── History sidebar handler ──────────────────────────────
-    void OnHistorySelect(wxCommandEvent& event);
+    // ── Noise handlers ───────────────────────────────────────
+    void OnNoiseUniform    (wxCommandEvent& event);
+    void OnNoiseGaussian   (wxCommandEvent& event);
+    void OnNoiseSaltPepper (wxCommandEvent& event);
+
+    // ── Low-pass filter handlers ─────────────────────────────
+    void OnLowPassAverage  (wxCommandEvent& event);
+    void OnLowPassGaussian (wxCommandEvent& event);
+    void OnLowPassMedian   (wxCommandEvent& event);
+
+    // ── Frequency filter handlers ────────────────────────────
+    void OnFilterLowFreq   (wxCommandEvent& event);
+    void OnFilterHighFreq  (wxCommandEvent& event);
+
+    // ── History sidebar handlers ─────────────────────────────
+    void OnHistorySelect  (wxCommandEvent& event);
+    void OnHistoryRestore (wxCommandEvent& event);
 
     wxDECLARE_EVENT_TABLE();
 
@@ -103,7 +118,20 @@ enum {
     ID_FILTER_EQUALIZE,
     ID_FILTER_NORMALIZE,
     ID_VIEW_HISTOGRAM,
-    ID_HISTORY_SELECT
+    // Noise
+    ID_NOISE_UNIFORM,
+    ID_NOISE_GAUSSIAN,
+    ID_NOISE_SALTPEPPER,
+    // Low-pass filters
+    ID_LOWPASS_AVERAGE,
+    ID_LOWPASS_GAUSSIAN,
+    ID_LOWPASS_MEDIAN,
+    // Frequency filters
+    ID_FILTER_LOWFREQ,
+    ID_FILTER_HIGHFREQ,
+    // History
+    ID_HISTORY_SELECT,
+    ID_HISTORY_RESTORE
 };
 
 #endif // IMAGEFRAME_H

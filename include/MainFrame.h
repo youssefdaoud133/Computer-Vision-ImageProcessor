@@ -31,6 +31,12 @@ private:
     void OnUploadClicked(wxCommandEvent& event);
 
     /**
+     * @brief Event handler for Hybrid Image creation.
+     * Lets the user pick two images, assign low/high-pass roles, and opens the result.
+     */
+    void OnHybridClicked(wxCommandEvent& event);
+
+    /**
      * @brief Event handler for application exit.
      * @param event The wxCommandEvent triggered by the menu.
      */
@@ -41,12 +47,14 @@ private:
 
     // UI Elements
     wxButton* m_uploadBtn;
+    wxButton* m_hybridBtn;
     wxStaticText* m_introText;
 };
 
 // Define Event IDs
 enum {
-    ID_UPLOAD = 1
+    ID_UPLOAD = 1,
+    ID_HYBRID
 };
 
 #endif // MAINFRAME_H
