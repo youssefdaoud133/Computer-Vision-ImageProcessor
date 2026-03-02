@@ -23,31 +23,20 @@ private:
      */
     void CreateFilterToolbar();
 
-    /**
-     * @brief Restores the image back to its original unmodified state.
-     * @param event The wxCommandEvent triggered by the button.
-     */
+    // Existing handlers
     void OnReset(wxCommandEvent& event);
-
-    /**
-     * @brief Applies a grayscale transformation to the image.
-     * @param event The wxCommandEvent triggered by the button.
-     */
     void OnFilterGrayscale(wxCommandEvent& event);
-
-    /**
-     * @brief Applies a blur filter to the image.
-     * @param event The wxCommandEvent triggered by the button.
-     */
     void OnFilterBlur(wxCommandEvent& event);
-
-    /**
-     * @brief Applies an invert colors filter to the image.
-     * @param event The wxCommandEvent triggered by the button.
-     */
     void OnFilterInvert(wxCommandEvent& event);
 
-    // Setup event table
+    // --- NEW OpenCV handlers ---
+    void OnNoiseUniform(wxCommandEvent& event);
+    void OnNoiseGaussian(wxCommandEvent& event);
+    void OnNoiseSaltPepper(wxCommandEvent& event);
+    void OnFilterAverage(wxCommandEvent& event);
+    void OnFilterGaussian(wxCommandEvent& event);
+    void OnFilterMedian(wxCommandEvent& event);
+
     wxDECLARE_EVENT_TABLE();
     
     // UI elements
@@ -56,12 +45,18 @@ private:
     wxString    m_originalPath;
 };
 
-// Tool / Filter IDs
+// Unified tool/filter IDs
 enum {
     ID_RESET = 100,
     ID_FILTER_GRAYSCALE,
     ID_FILTER_BLUR,
-    ID_FILTER_INVERT
+    ID_FILTER_INVERT,
+    ID_NOISE_UNIFORM,
+    ID_NOISE_GAUSSIAN,
+    ID_NOISE_SALT_PEPPER,
+    ID_FILTER_AVERAGE,
+    ID_FILTER_GAUSSIAN,
+    ID_FILTER_MEDIAN
 };
 
 #endif // IMAGEFRAME_H

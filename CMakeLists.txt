@@ -19,3 +19,9 @@ add_executable(ImageProcessor ${SOURCES})
 
 # Link libraries
 target_link_libraries(ImageProcessor ${wxWidgets_LIBRARIES})
+
+# Find OpenCV
+find_package(OpenCV REQUIRED)
+include_directories(${OpenCV_INCLUDE_DIRS})
+
+target_link_libraries(ImageProcessor ${wxWidgets_LIBRARIES} ${OpenCV_LIBS})
