@@ -16,6 +16,8 @@ wxBEGIN_EVENT_TABLE(ImageFrame, wxFrame)
     EVT_TOOL(ID_FILTER_PREWITT,   ImageFrame::OnFilterPrewitt)
     EVT_TOOL(ID_FILTER_CANNY,     ImageFrame::OnFilterCanny)
     EVT_TOOL(ID_VIEW_HISTOGRAM,   ImageFrame::OnViewHistogram)
+    EVT_TOOL(ID_FILTER_EQUALIZE,  ImageFrame::OnFilterEqualize)
+    EVT_TOOL(ID_FILTER_NORMALIZE, ImageFrame::OnFilterNormalize)
 wxEND_EVENT_TABLE()
 
 ImageFrame::ImageFrame(const wxString& title, const wxString& imagePath)
@@ -47,6 +49,9 @@ void ImageFrame::CreateFilterToolbar() {
     m_toolbar->AddTool(ID_FILTER_CANNY,     "Canny",     wxArtProvider::GetBitmap(wxART_HARDDISK,      wxART_TOOLBAR), "Canny Edge Detection (OpenCV)");
     m_toolbar->AddSeparator();
     m_toolbar->AddTool(ID_VIEW_HISTOGRAM,   "Histogram", wxArtProvider::GetBitmap(wxART_GO_UP,         wxART_TOOLBAR), "View Image Histogram");
+    m_toolbar->AddSeparator();
+    m_toolbar->AddTool(ID_FILTER_EQUALIZE,  "Equalize",  wxArtProvider::GetBitmap(wxART_GO_FORWARD,    wxART_TOOLBAR), "Equalize Histogram");
+    m_toolbar->AddTool(ID_FILTER_NORMALIZE, "Normalize", wxArtProvider::GetBitmap(wxART_GO_DOWN,       wxART_TOOLBAR), "Normalize Histogram");
     m_toolbar->Realize();
 }
 
@@ -158,4 +163,20 @@ void ImageFrame::OnViewHistogram(wxCommandEvent&) {
     auto curve = Filtering::GetDistributionCurve(hist);
     HistogramFrame* hFrame = new HistogramFrame(this, hist, curve);
     hFrame->Show(true);
+}
+
+void ImageFrame::OnFilterEqualize(wxCommandEvent&) {
+    if (!m_imagePanel) return;
+    wxImage current = m_imagePanel->GetCurrentImage();
+    if (!current.IsOk()) return;
+    m_imagePanel->SetImage(Filtering::EqualizeHistogram(current));
+    SetStatusText("Applied Histogram Equalization.");
+}
+
+void ImageFrame::OnFilterNormalize(wxCommandEvent&) {
+    if (!m_imagePanel) return;
+    wxImage current = m_imagePanel->GetCurrentImage();
+    if (!current.IsOk()) return;
+    m_imagePanel->SetImage(Filtering::NormalizeHistogram(current));
+    SetStatusText("Applied Histogram Normalization.");
 }

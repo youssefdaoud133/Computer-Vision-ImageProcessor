@@ -67,6 +67,8 @@ private:
     void OnFilterPrewitt(wxCommandEvent& event);
     void OnFilterCanny(wxCommandEvent& event);
     void OnViewHistogram(wxCommandEvent& event);
+    void OnFilterEqualize(wxCommandEvent& event);
+    void OnFilterNormalize(wxCommandEvent& event);
 
     // Setup event table
     wxDECLARE_EVENT_TABLE();
@@ -87,7 +89,9 @@ enum {
     ID_FILTER_ROBERTS,
     ID_FILTER_PREWITT,
     ID_FILTER_CANNY,
-    ID_VIEW_HISTOGRAM
+    ID_VIEW_HISTOGRAM,
+    ID_FILTER_EQUALIZE,
+    ID_FILTER_NORMALIZE
 };
 
 #endif // IMAGEFRAME_H

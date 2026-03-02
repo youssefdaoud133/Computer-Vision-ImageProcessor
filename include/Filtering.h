@@ -19,6 +19,10 @@ public:
     static std::vector<int>    GetHistogram(const wxImage& image);
     static std::vector<double> GetDistributionCurve(const std::vector<int>& histogram);
 
+    // Histogram Enhancement
+    static wxImage EqualizeHistogram(const wxImage& image);
+    static wxImage NormalizeHistogram(const wxImage& image);
+
 private:
     // Returns {magnitude, gradX, gradY}
     static std::vector<wxImage> ApplyMatrix(const wxImage& image,

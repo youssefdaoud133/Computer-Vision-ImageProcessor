@@ -178,3 +178,94 @@ std::vector<double> Filtering::GetDistributionCurve(const std::vector<int>& hist
     }
     return curve;
 }
+
+// ─────────────────────────────────────────────────────────────
+// Histogram Equalization
+// Spreads intensity values across the full [0, 255] range using CDF.
+// Formula: new_val[i] = round( CDF[i] / n * (L-1) )
+// ─────────────────────────────────────────────────────────────
+wxImage Filtering::EqualizeHistogram(const wxImage& image) {
+    wxImage gray = image.ConvertToGreyscale();
+    int width  = gray.GetWidth();
+    int height = gray.GetHeight();
+    int n      = width * height;     // total number of pixels
+    int L      = 256;                // number of intensity levels
+
+    unsigned char* data = gray.GetData();
+
+    // Step 1: compute histogram (n_i = count of pixels with intensity i)
+    std::vector<int> hist(L, 0);
+    for (int i = 0; i < n; i++)
+        hist[data[i * 3]]++;
+
+    // Step 2: build CDF (cumulative sum of histogram)
+    std::vector<int> cdf(L, 0);
+    cdf[0] = hist[0];
+    for (int i = 1; i < L; i++)
+        cdf[i] = cdf[i - 1] + hist[i];
+
+    // Step 3: build lookup table — new_val = round( cdf[i] / n * (L-1) )
+    std::vector<unsigned char> lut(L);
+    for (int i = 0; i < L; i++)
+        lut[i] = static_cast<unsigned char>(std::round(static_cast<double>(cdf[i]) / n * (L - 1)));
+
+    // Step 4: apply lookup table to every pixel (grayscale → keep RGB equal)
+    wxImage result(width, height);
+    unsigned char* out = result.GetData();
+    for (int i = 0; i < n; i++) {
+        unsigned char eq = lut[data[i * 3]];
+        out[i * 3]     = eq;
+        out[i * 3 + 1] = eq;
+        out[i * 3 + 2] = eq;
+    }
+    return result;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Histogram Normalization
+// Stretches intensity values linearly so the darkest pixel becomes 0
+// and the brightest becomes 255.
+// Formula: new_val = round( (old_val - min) / (max - min) * (L-1) )
+// ─────────────────────────────────────────────────────────────
+wxImage Filtering::NormalizeHistogram(const wxImage& image) {
+    wxImage gray = image.ConvertToGreyscale();
+    int width  = gray.GetWidth();
+    int height = gray.GetHeight();
+    int n      = width * height;
+    int L      = 256;
+
+    unsigned char* data = gray.GetData();
+
+    // Step 1: find min and max intensity values present in the image
+    int minVal = 255, maxVal = 0;
+    for (int i = 0; i < n; i++) {
+        int v = data[i * 3];
+        if (v < minVal) minVal = v;
+        if (v > maxVal) maxVal = v;
+    }
+
+    // If all pixels are the same intensity, return a black image (avoid div-by-zero)
+    if (maxVal == minVal) {
+        wxImage result(width, height);
+        result.SetData((unsigned char*)calloc(width * height * 3, 1), true);
+        return result;
+    }
+
+    // Step 2: build lookup table
+    std::vector<unsigned char> lut(L);
+    for (int i = 0; i < L; i++) {
+        lut[i] = static_cast<unsigned char>(
+            std::round(static_cast<double>(i - minVal) / (maxVal - minVal) * (L - 1)));
+    }
+
+    // Step 3: apply lookup table
+    wxImage result(width, height);
+    unsigned char* out = result.GetData();
+    for (int i = 0; i < n; i++) {
+        unsigned char norm = lut[data[i * 3]];
+        out[i * 3]     = norm;
+        out[i * 3 + 1] = norm;
+        out[i * 3 + 2] = norm;
+    }
+    return result;
+}
