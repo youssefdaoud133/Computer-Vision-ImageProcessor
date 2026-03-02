@@ -37,6 +37,7 @@ static wxImage MatToWxImage(const cv::Mat& mat) {
 std::vector<wxImage> Filtering::ApplyMatrix(const wxImage& image,
                                              const std::vector<std::vector<int>>& kernelX,
                                              const std::vector<std::vector<int>>& kernelY) {
+    // bthwl l image l grey bec edge detection byshtghl 3la intensity msh colors                                            
     wxImage gray = image.ConvertToGreyscale();
     int width  = gray.GetWidth();
     int height = gray.GetHeight();
@@ -54,9 +55,9 @@ std::vector<wxImage> Filtering::ApplyMatrix(const wxImage& image,
     memset(dataX,   0, width * height * 3);
     memset(dataY,   0, width * height * 3);
 
-    int kSize  = (int)kernelX.size();
-    int offset = kSize / 2;
-
+    int kSize  = (int)kernelX.size(); // bygeb size l kernel (if 3*3 kernel so size=3)
+    int offset = kSize / 2; // offset=1 hseb awl w akhr row w awl w akhr column w yb2a da l current pixel(ashan makhrogsh bara l sora)
+// btlf 3la kol pixel w ttb2 convolution (h3dy 3la kol pixel w akhod 3*3 matrix hwalen l pixel)
     for (int y = offset; y < height - offset; y++) {
         for (int x = offset; x < width - offset; x++) {
             int valX = 0, valY = 0;
@@ -78,13 +79,9 @@ std::vector<wxImage> Filtering::ApplyMatrix(const wxImage& image,
             dataY[idx]   = dataY[idx+1]   = dataY[idx+2]   = (unsigned char)absY;
         }
     }
-
-    return { resMag, resX, resY };
+    return { resMag, resX, resY }; // bnrg3 l 3 swar l magnitude w direction x w direction y
 }
 
-// ─────────────────────────────────────────────────────────────
-// Public edge detectors — return {magnitude, gradX, gradY}
-// ─────────────────────────────────────────────────────────────
 std::vector<wxImage> Filtering::ApplySobel(const wxImage& image) {
     std::vector<std::vector<int>> kX = {{-1, 0, 1}, {-2, 0, 2}, {-1, 0, 1}};
     std::vector<std::vector<int>> kY = {{-1, -2, -1}, {0, 0, 0}, {1, 2, 1}};

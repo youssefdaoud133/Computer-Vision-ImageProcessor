@@ -22,19 +22,20 @@ HistogramFrame::HistogramFrame(wxWindow* parent,
 
 void HistogramFrame::OnPaint(wxPaintEvent& /*event*/) {
     wxAutoBufferedPaintDC dc(this);
+    // btms7 kol l rosomat l adema w tbd2 mn gded
     dc.Clear();
-
+   // btgeb hagm l msaha l dakhlya ll window mn gher l borders
     wxSize size = GetClientSize();
     const int marginL = 70;
     const int marginR = 20;
     const int marginT = 30;
     const int marginB = 45;
-
+   // de l msa7a l bnrsm feha l bars wl curve
     int drawWidth  = size.GetWidth()  - marginL - marginR;
     int drawHeight = size.GetHeight() - marginT - marginB;
 
     if (m_histogram.empty() || drawWidth <= 0 || drawHeight <= 0) return;
-
+     // l trueMax hya a3la value mawgoda fl histogram
     // 99th-percentile cap so a single spike doesn't crush the rest of the chart
     int trueMax = *std::max_element(m_histogram.begin(), m_histogram.end());
 
