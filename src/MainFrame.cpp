@@ -102,7 +102,7 @@ void MainFrame::OnHybridClicked(wxCommandEvent&) {
 
     // --- Parameters dialog: choose roles + kernel/sigma ---
     wxDialog paramDlg(this, wxID_ANY, "Hybrid Image Parameters",
-                      wxDefaultPosition, wxSize(420, 280));
+                      wxDefaultPosition, wxSize(420, 320));
     wxBoxSizer* vs = new wxBoxSizer(wxVERTICAL);
 
     // File labels
@@ -111,7 +111,7 @@ void MainFrame::OnHybridClicked(wxCommandEvent&) {
         wxString::Format("A: %s\nB: %s", fnA.GetFullName(), fnB.GetFullName())),
         0, wxALL, 10);
 
-    wxFlexGridSizer* gs = new wxFlexGridSizer(3, 2, 6, 10);
+    wxFlexGridSizer* gs = new wxFlexGridSizer(4, 2, 6, 10);
     gs->AddGrowableCol(1);
 
     // Role selector
@@ -124,15 +124,25 @@ void MainFrame::OnHybridClicked(wxCommandEvent&) {
     gs->Add(new wxStaticText(&paramDlg, wxID_ANY, "Role:"), 0, wxALIGN_CENTER_VERTICAL);
     gs->Add(roleChoice, 1, wxEXPAND);
 
-    // Kernel size
-    wxTextCtrl* tcKernel = new wxTextCtrl(&paramDlg, wxID_ANY, "21");
-    gs->Add(new wxStaticText(&paramDlg, wxID_ANY, "Kernel size (odd):"), 0, wxALIGN_CENTER_VERTICAL);
-    gs->Add(tcKernel, 1, wxEXPAND);
+    // Filter type
+    wxArrayString filterTypes;
+    filterTypes.Add("Ideal (hard circle)");
+    filterTypes.Add("Gaussian (smooth)");
+    wxChoice* filterChoice = new wxChoice(&paramDlg, wxID_ANY, wxDefaultPosition,
+                                          wxDefaultSize, filterTypes);
+    filterChoice->SetSelection(1); // default Gaussian
+    gs->Add(new wxStaticText(&paramDlg, wxID_ANY, "Filter type:"), 0, wxALIGN_CENTER_VERTICAL);
+    gs->Add(filterChoice, 1, wxEXPAND);
 
-    // Sigma
-    wxTextCtrl* tcSigma = new wxTextCtrl(&paramDlg, wxID_ANY, "5.0");
-    gs->Add(new wxStaticText(&paramDlg, wxID_ANY, "Sigma:"), 0, wxALIGN_CENTER_VERTICAL);
-    gs->Add(tcSigma, 1, wxEXPAND);
+    // Low cutoff frequency
+    wxTextCtrl* tcLowCutoff = new wxTextCtrl(&paramDlg, wxID_ANY, "30");
+    gs->Add(new wxStaticText(&paramDlg, wxID_ANY, "Low cutoff (px):"), 0, wxALIGN_CENTER_VERTICAL);
+    gs->Add(tcLowCutoff, 1, wxEXPAND);
+
+    // High cutoff frequency
+    wxTextCtrl* tcHighCutoff = new wxTextCtrl(&paramDlg, wxID_ANY, "60");
+    gs->Add(new wxStaticText(&paramDlg, wxID_ANY, "High cutoff (px):"), 0, wxALIGN_CENTER_VERTICAL);
+    gs->Add(tcHighCutoff, 1, wxEXPAND);
 
     vs->Add(gs, 0, wxEXPAND | wxALL, 12);
     vs->Add(paramDlg.CreateButtonSizer(wxOK | wxCANCEL), 0, wxEXPAND | wxALL, 8);
@@ -141,14 +151,13 @@ void MainFrame::OnHybridClicked(wxCommandEvent&) {
 
     if (paramDlg.ShowModal() != wxID_OK) return;
 
-    long kSize = 21;
-    double sigma = 5.0;
-    tcKernel->GetValue().ToLong(&kSize);
-    tcSigma->GetValue().ToDouble(&sigma);
-    if (kSize < 3) kSize = 3;
-    if (kSize > 51) kSize = 51;
-    if (kSize % 2 == 0) kSize += 1;  // ensure odd
-    if (sigma < 0.1) sigma = 0.1;
+    double lowCutoff = 30.0;
+    double highCutoff = 60.0;
+    int filterType = filterChoice->GetSelection(); // 0=Ideal, 1=Gaussian
+    tcLowCutoff->GetValue().ToDouble(&lowCutoff);
+    tcHighCutoff->GetValue().ToDouble(&highCutoff);
+    if (lowCutoff < 1.0)  lowCutoff  = 1.0;
+    if (highCutoff < 1.0) highCutoff = 1.0;
 
     // Load images
     wxImage imgA(pathA, wxBITMAP_TYPE_ANY);
@@ -173,7 +182,7 @@ void MainFrame::OnHybridClicked(wxCommandEvent&) {
     SetStatusText("Computing Hybrid Image -- please wait...");
     Update();
 
-    wxImage hybrid = Filtering::HybridImage(lowSrc, highSrc, (int)kSize, sigma);
+    wxImage hybrid = Filtering::HybridImage(lowSrc, highSrc, lowCutoff, highCutoff, filterType);
     if (!hybrid.IsOk()) {
         wxMessageBox("Hybrid image generation failed.", "Error", wxICON_ERROR);
         SetStatusText("Hybrid image failed.");

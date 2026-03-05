@@ -1,0 +1,12 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Run ImageProcessor",
+			"type": "shell",
+			"command": "./build/ImageProcessor",
+			"isBackground": false,
+			"group": "build"
+		}
+	]
+}

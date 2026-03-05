@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Computer Vision Image Processor — Deep Dive</title>
+<style>
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    max-width: 960px;
+    margin: 40px auto;
+    font-size: 14px;
+    line-height: 1.7;
+    color: #1a1a1a;
+  }
+  h1 { color: #1a237e; border-bottom: 3px solid #1a237e; padding-bottom: 8px; }
+  h2 { color: #283593; border-bottom: 1px solid #c5cae9; margin-top: 2em; }
+  h3 { color: #3949ab; }
+  h4 { color: #5c6bc0; }
+  code {
+    background: #f3f4f8;
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 92%;
+  }
+  pre {
+    background: #1e1e2e;
+    color: #cdd6f4;
+    padding: 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  pre code { background: none; padding: 0; color: inherit; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1em 0;
+  }
+  th {
+    background: #1a237e;
+    color: white;
+    padding: 8px 12px;
+    text-align: left;
+  }
+  td {
+    border: 1px solid #c5cae9;
+    padding: 7px 12px;
+  }
+  tr:nth-child(even) td { background: #f5f5ff; }
+  img {
+    max-width: 100%;
+    height: auto;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    margin: 8px 0;
+    display: block;
+  }
+  blockquote {
+    border-left: 4px solid #7986cb;
+    background: #e8eaf6;
+    margin: 1em 0;
+    padding: 8px 16px;
+    border-radius: 0 4px 4px 0;
+    color: #283593;
+  }
+  hr { border: none; border-top: 1px solid #c5cae9; margin: 2em 0; }
+  a { color: #3949ab; }
+</style>
+</head>
+<body>
+<h1 id="computer-vision-image-processor-deep-dive-documentation">Computer Vision Image Processor — Deep Dive Documentation</h1>
+<blockquote>
+<p><strong>GitHub Repository:</strong> <a href="https://github.com/youssefdaoud133/Computer-Vision-ImageProcessor">https://github.com/youssefdaoud133/Computer-Vision-ImageProcessor</a></p>
+</blockquote>
+<hr />
+<h2 id="team-members">Team Members</h2>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Student Code</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mai Mahmoud Mohamed</td>
+<td>9230934</td>
+</tr>
+<tr>
+<td>Malak Saad</td>
+<td>9230902</td>
+</tr>
+<tr>
+<td>Manar Yousry Ebaid Ali</td>
+<td>9230908</td>
+</tr>
+<tr>
+<td>Yasmeen Badr</td>
+<td>9230986</td>
+</tr>
+<tr>
+<td>Youssef Daoud</td>
+<td>9231011</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="table-of-contents">Table of Contents</h2>
+<ol>
+<li><a href="#1-project-overview">Project Overview</a></li>
+<li><a href="#2-architecture--design-pattern">Architecture &amp; Design Pattern</a></li>
+<li><a href="#3-component-breakdown">Component Breakdown</a></li>
+<li><a href="#4-data-structures--memory-model">Data Structures &amp; Memory Model</a></li>
+<li><a href="#5-algorithm-deep-dive">Algorithm Deep-Dive</a></li>
+<li>5.1 <a href="#51-edge-detection">Edge Detection</a></li>
+<li>5.2 <a href="#52-histogram-operations">Histogram Operations</a></li>
+<li>5.3 <a href="#53-noise-synthesis">Noise Synthesis</a></li>
+<li>5.4 <a href="#54-spatial-low-pass-filters">Spatial Low-Pass Filters</a></li>
+<li>5.5 <a href="#55-fft-based-frequency-domain-filters">FFT-Based Frequency-Domain Filters</a></li>
+<li>5.6 <a href="#56-hybrid-image-composition">Hybrid Image Composition</a></li>
+<li><a href="#6-history--undo-system">History &amp; Undo System</a></li>
+<li><a href="#7-live-histogram-panel">Live Histogram Panel</a></li>
+<li><a href="#8-test-cases-with-visual-results">Test Cases with Visual Results</a></li>
+<li>8.1 <a href="#81-edge-detection-tests">Edge Detection Tests</a></li>
+<li>8.2 <a href="#82-noise-tests">Noise Tests</a></li>
+<li>8.3 <a href="#83-histogram-tests">Histogram Tests</a></li>
+<li>8.4 <a href="#84-frequency-filter-tests">Frequency Filter Tests</a></li>
+<li>8.5 <a href="#85-hybrid-image-test">Hybrid Image Test</a></li>
+<li><a href="#9-build--run-instructions">Build &amp; Run Instructions</a></li>
+<li><a href="#10-developer-notes--golden-rules">Developer Notes &amp; Golden Rules</a></li>
+</ol>
+<hr />
+<h2 id="1-project-overview">1. Project Overview</h2>
+<p>This application is a specialized image processing workbench built in <strong>C++17</strong> using <strong>wxWidgets</strong> for the GUI, <strong>FFTW3</strong> for Fast Fourier Transform operations, and <strong>OpenCV</strong> for Canny edge detection and noise RNG.</p>
+<p><strong>Key capabilities:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Features</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Edge Detection</td>
+<td>Sobel, Roberts, Prewitt (manual), Canny (OpenCV)</td>
+</tr>
+<tr>
+<td>Histogram</td>
+<td>Equalization, Normalization, Live CDF display</td>
+</tr>
+<tr>
+<td>Noise Addition</td>
+<td>Uniform, Gaussian, Salt &amp; Pepper</td>
+</tr>
+<tr>
+<td>Spatial Filtering</td>
+<td>Average (Box), Gaussian, Median</td>
+</tr>
+<tr>
+<td>Frequency Filtering</td>
+<td>FFT Low-Pass, High-Pass, Band-Pass, Band-Stop</td>
+</tr>
+<tr>
+<td>Hybrid Image</td>
+<td>FFT-based multi-image fusion (Ideal / Gaussian)</td>
+</tr>
+<tr>
+<td>Undo History</td>
+<td>Branchless snapshot stack</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2-architecture-design-pattern">2. Architecture &amp; Design Pattern</h2>
+<p>The project follows a <strong>Modified MVC (Model-View-Controller)</strong> pattern adapted for wxWidgets's event-driven loop.</p>
+<pre><code>┌─────────────────────────────────────────────────────────────────┐
+│                          Application                            │
+│   ┌──────────┐    spawns    ┌───────────────────────────────┐   │
+│   │ MainFrame│ ──────────▶  │          ImageFrame           │   │
+│   │          │              │  ┌─────────┐  ┌────────────┐  │   │
+│   │ Upload   │              │  │ImagePanel│  │HistogramPnl│  │   │
+│   │ Hybrid   │              │  │ (View)  │  │  (View)    │  │   │
+│   └──────────┘              │  └────┬────┘  └────────────┘  │   │
+│                             │       │  calls                 │   │
+│                             │  ┌────▼──────────────────────┐│   │
+│                             │  │     Filtering (Engine)    ││   │
+│                             │  │  stateless static methods ││   │
+│                             │  └───────────────────────────┘│   │
+│                             └───────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre>
+<p><strong>Separation of concerns:</strong></p>
+<ul>
+<li><strong>Model:</strong> <code>Filtering</code> class — pure algorithmic logic, no UI dependencies.</li>
+<li><strong>View:</strong> <code>ImagePanel</code>, <code>HistogramPanel</code> — render pixels, draw histograms.</li>
+<li><strong>Controller:</strong> <code>ImageFrame</code> — routes toolbar events → <code>Filtering</code> → <code>ImagePanel</code>.</li>
+</ul>
+<hr />
+<h2 id="3-component-breakdown">3. Component Breakdown</h2>
+<h3 id="app-apph-appcpp"><code>App</code> (<code>App.h</code> / <code>App.cpp</code>)</h3>
+<p>The main <code>wxApp</code> subclass. Contains <code>OnInit()</code> which creates and shows the <code>MainFrame</code>. Entry point via <code>wxIMPLEMENT_APP(App)</code>.</p>
+<h3 id="mainframe-mainframeh-mainframecpp"><code>MainFrame</code> (<code>MainFrame.h</code> / <code>MainFrame.cpp</code>)</h3>
+<p>The launcher window. Provides two actions:
+- <strong>Upload Images</strong> — opens a multi-selection <code>wxFileDialog</code>; each path spawns an <code>ImageFrame</code>.
+- <strong>Hybrid Image</strong> — a guided three-step flow: pick Image A → pick Image B → configure parameters (role, filter type, cutoff frequencies) → compute and display result.</p>
+<h3 id="imageframe-imageframeh-imageframecpp"><code>ImageFrame</code> (<code>ImageFrame.h</code> / <code>ImageFrame.cpp</code>)</h3>
+<p>The core editing window. Contains:
+- A <strong>horizontal toolbar</strong> with all filter actions.
+- An <strong><code>ImagePanel</code></strong> (centre, 3 parts) for rendering.
+- A <strong>right sidebar</strong> (1 part) with live <code>HistogramPanel</code> and history <code>wxListBox</code>.</p>
+<p>On every filter action, <code>ImageFrame</code>:
+1. Calls the appropriate <code>Filtering::*</code> static method.
+2. Calls <code>m_imagePanel-&gt;SetImage(result)</code>.
+3. Calls <code>RefreshHistogram()</code> to update the sidebar.
+4. Calls <code>PushHistory(label)</code> to log the snapshot.</p>
+<h3 id="imagepanel-imagepanelh-imagepanelcpp"><code>ImagePanel</code> (<code>ImagePanel.h</code> / <code>ImagePanel.cpp</code>)</h3>
+<p>A <code>wxPanel</code> rendering subclass. Stores a <code>wxImage</code> (the working pixel buffer) and a <code>wxBitmap</code> (the display-resolution scaled version). On <code>EVT_SIZE</code>, it recomputes <code>m_scaledBitmap</code> preserving aspect ratio. On <code>EVT_PAINT</code>, it blits the bitmap centred in the panel.</p>
+<h3 id="histogrampanel-histogrampanelh-histogrampanelcpp"><code>HistogramPanel</code> (<code>HistogramPanel.h</code> / <code>HistogramPanel.cpp</code>)</h3>
+<p>Draws a live bar chart of per-channel R, G, B intensity frequencies (0–255) and overlays the smoothed CDF curve. Called via <code>Update(newImage)</code> after each filter action.</p>
+<h3 id="histogramframe-histogramframeh-histogramframecpp"><code>HistogramFrame</code> (<code>HistogramFrame.h</code> / <code>HistogramFrame.cpp</code>)</h3>
+<p>A standalone <code>wxFrame</code> wrapper that hosts a <code>HistogramPanel</code> as a popup when the user clicks the "Histogram" toolbar button.</p>
+<h3 id="filtering-filteringh-filteringcpp"><code>Filtering</code> (<code>Filtering.h</code> / <code>Filtering.cpp</code>)</h3>
+<p>The algorithm engine — <strong>1 082 lines</strong> of pure C++ math. All methods are <code>static</code>. Accepts <code>const wxImage&amp;</code> and returns a new <code>wxImage</code>. Never touches UI.</p>
+<p><strong>Dependencies:</strong>
+- <code>&lt;fftw3.h&gt;</code> — FFT forward/inverse transforms.
+- <code>&lt;opencv2/opencv.hpp&gt;</code> — Canny edge detection, colour conversions.
+- <code>&lt;cmath&gt;</code>, <code>&lt;algorithm&gt;</code>, <code>&lt;random&gt;</code>, <code>&lt;vector&gt;</code> — standard library.</p>
+<hr />
+<h2 id="4-data-structures-memory-model">4. Data Structures &amp; Memory Model</h2>
+<h3 id="pixel-buffer">Pixel Buffer</h3>
+<p><code>wxImage</code> stores pixels as a contiguous <code>unsigned char*</code> in <strong>RGB-interleaved</strong> format:</p>
+<pre><code>Index:   0   1   2   3   4   5   6   7   8  ...
+Channel: R0  G0  B0  R1  G1  B1  R2  G2  B2 ...
+</code></pre>
+<p>Access formula for pixel <code>(x, y)</code> in an image of <code>width</code> W:</p>
+<pre><code>base_index = (y * W + x) * 3
+R = data[base_index]
+G = data[base_index + 1]
+B = data[base_index + 2]
+</code></pre>
+<h3 id="clamp-helper">Clamp Helper</h3>
+<p>All arithmetic on pixel values uses:</p>
+<pre><code class="language-cpp">static inline unsigned char Clamp(int v) {
+    return static_cast&lt;unsigned char&gt;(v &lt; 0 ? 0 : v &gt; 255 ? 255 : v);
+}
+</code></pre>
+<p>This prevents overflow/underflow without branchy if-chains.</p>
+<h3 id="fft-buffers-fftw">FFT Buffers (FFTW)</h3>
+<p>FFT operations allocate FFTW-aligned complex arrays:</p>
+<pre><code class="language-cpp">fftw_complex* in       = fftw_malloc(sizeof(fftw_complex) * N); // input
+fftw_complex* out      = fftw_malloc(sizeof(fftw_complex) * N); // spectrum
+fftw_complex* filtered = fftw_malloc(sizeof(fftw_complex) * N); // masked spectrum
+</code></pre>
+<p><code>fftw_complex</code> is <code>double[2]</code> — index <code>[0]</code> = real part, <code>[1]</code> = imaginary part.</p>
+<p>After the inverse FFT, the result is divided by <code>N</code> because <strong>FFTW is unnormalised</strong>:</p>
+<pre><code>IDFT output[i] = (sum of spectrum) → must divide by N to recover original scale
+</code></pre>
+<h3 id="history-stack">History Stack</h3>
+<pre><code class="language-cpp">std::vector&lt;wxImage&gt;   m_historyImages;  // deep copies of pixel buffers
+std::vector&lt;wxString&gt;  m_historyLabels;  // human-readable filter names
+</code></pre>
+<p>The <code>wxListBox</code> mirrors these vectors. Selection of an older entry truncates future entries (branchless undo).</p>
+<hr />
+<h2 id="5-algorithm-deep-dive">5. Algorithm Deep-Dive</h2>
+<h3 id="51-edge-detection">5.1 Edge Detection</h3>
+<h4 id="sobel-manual-convolution">Sobel (manual convolution)</h4>
+<p>Sobel uses two 3×3 kernels to approximate the horizontal ($G_x$) and vertical ($G_y$) image gradients:</p>
+<p>$$G_x = \begin{bmatrix} -1 &amp; 0 &amp; 1 \ -2 &amp; 0 &amp; 2 \ -1 &amp; 0 &amp; 1 \end{bmatrix}, \quad G_y = \begin{bmatrix} -1 &amp; -2 &amp; -1 \ 0 &amp; 0 &amp; 0 \ 1 &amp; 2 &amp; 1 \end{bmatrix}$$</p>
+<p>Magnitude:
+$$|G| = \sqrt{G_x^2 + G_y^2}$$</p>
+<p>Clamped to $[0, 255]$ and stored in a grayscale image.</p>
+<h4 id="roberts-cross-manual">Roberts Cross (manual)</h4>
+<p>Diagonal 2×2 difference operators:</p>
+<p>$$G_x = p_{(x,y)} - p_{(x+1,y+1)}, \quad G_y = p_{(x+1,y)} - p_{(x,y+1)}$$</p>
+<p>Sensitive to diagonal edges; computationally minimal.</p>
+<h4 id="prewitt-manual">Prewitt (manual)</h4>
+<p>Same framework as Sobel but equal weights — no centre-pixel emphasis:</p>
+<p>$$G_x = \begin{bmatrix} -1 &amp; 0 &amp; 1 \ -1 &amp; 0 &amp; 1 \ -1 &amp; 0 &amp; 1 \end{bmatrix}, \quad G_y = \begin{bmatrix} -1 &amp; -1 &amp; -1 \ 0 &amp; 0 &amp; 0 \ 1 &amp; 1 &amp; 1 \end{bmatrix}$$</p>
+<h4 id="canny-opencv">Canny (OpenCV)</h4>
+<p>Multi-stage algorithm:
+1. Gaussian blur (5×5, σ=1.4) — suppresses noise.
+2. Sobel gradient computation.
+3. Non-maximum suppression — thins edges to 1-pixel width.
+4. Double thresholding (low=50, high=150) + hysteresis — removes weak/false edges.</p>
+<hr />
+<h3 id="52-histogram-operations">5.2 Histogram Operations</h3>
+<h4 id="equalization">Equalization</h4>
+<p><strong>Goal:</strong> Redistribute intensity values to maximise contrast.</p>
+<p><strong>Steps:</strong></p>
+<ol>
+<li>Compute histogram $h[i]$ — count of pixels with intensity $i$.</li>
+<li>Build CDF: $\text{cdf}[i] = \sum_{j=0}^{i} h[j]$</li>
+<li>Build LUT: $\text{lut}[i] = \text{round}!\left(\dfrac{\text{cdf}[i]}{n} \times 255\right)$</li>
+<li>Apply LUT to every pixel.</li>
+</ol>
+<p>Where $n$ = total pixel count.</p>
+<h4 id="normalization-contrast-stretching">Normalization (Contrast Stretching)</h4>
+<p><strong>Goal:</strong> Linearly map $[\min, \max]$ of current intensities to $[0, 255]$.</p>
+<p>$$\text{out}[i] = \text{round}!\left(\dfrac{v - v_{\min}}{v_{\max} - v_{\min}} \times 255\right)$$</p>
+<hr />
+<h3 id="53-noise-synthesis">5.3 Noise Synthesis</h3>
+<h4 id="uniform-noise">Uniform Noise</h4>
+<p>For each channel byte, adds a random integer in $[\text{low},\, \text{high}]$ using <code>std::uniform_int_distribution</code>.</p>
+<pre><code>new_pixel = Clamp(old_pixel + rand(low, high))
+</code></pre>
+<h4 id="gaussian-noise">Gaussian Noise</h4>
+<p>Uses <code>std::normal_distribution&lt;double&gt;(mean, stddev)</code> to generate per-channel offsets drawn from $\mathcal{N}(\mu, \sigma^2)$.</p>
+<h4 id="salt-pepper-noise">Salt &amp; Pepper Noise</h4>
+<p>Randomly selects <code>density × W × H</code> pixel positions, sets half to 255 (salt) and half to 0 (pepper) across all three channels simultaneously.</p>
+<hr />
+<h3 id="54-spatial-low-pass-filters">5.4 Spatial Low-Pass Filters</h3>
+<p>All three share the <code>ApplyKernel()</code> helper that uses <strong>clamp-to-edge padding</strong> for border pixels.</p>
+<h4 id="average-box-filter">Average (Box) Filter</h4>
+<p>Kernel: uniform $k \times k$ matrix with all weights = $\dfrac{1}{k^2}$.</p>
+<h4 id="gaussian-filter">Gaussian Filter</h4>
+<p>Kernel built analytically from:
+$$K(x,y) = e^{-\dfrac{x^2 + y^2}{2\sigma^2}}$$</p>
+<p>Normalised so all weights sum to 1. Result: smooth blur without ringing.</p>
+<h4 id="median-filter">Median Filter</h4>
+<p>For each pixel, collects the $k \times k$ neighbourhood into three separate vectors (R, G, B), sorts them, and takes the middle element. Effective at removing salt-and-pepper noise while preserving sharp edges.</p>
+<hr />
+<h3 id="55-fft-based-frequency-domain-filters">5.5 FFT-Based Frequency-Domain Filters</h3>
+<p><strong>Pipeline for all FFT filters:</strong></p>
+<pre><code>    wxImage (spatial)
+         │
+         ▼  ImageToDoubleArray()
+    double[] grayscale values
+         │
+         ▼  fftw_plan_dft_2d (FORWARD)
+    fftw_complex[] spectrum F(u,v)
+         │
+         ▼  Apply transfer function H(u,v)
+    fftw_complex[] filtered G(u,v) = F(u,v) · H(u,v)
+         │
+         ▼  fftw_plan_dft_2d (BACKWARD)
+    double[] spatial result / N
+         │
+         ▼  DoubleArrayToImage() → normalise [0,255]
+    wxImage (filtered)
+</code></pre>
+<p><strong>Frequency coordinate system (FFTW layout):</strong></p>
+<p>FFTW places DC at index (0,0). To compute the true distance from DC:</p>
+<pre><code class="language-cpp">int fx = (x &lt;= width/2)  ? x : x - width;
+int fy = (y &lt;= height/2) ? y : y - height;
+double D = sqrt(fx*fx + fy*fy);
+</code></pre>
+<h4 id="low-pass-filter-transfer-functions">Low-Pass Filter Transfer Functions</h4>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Formula</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ideal</td>
+<td>$H = 1$ if $D \leq D_0$, else $0$</td>
+</tr>
+<tr>
+<td>Gaussian</td>
+<td>$H = e^{-D^2 / (2D_0^2)}$</td>
+</tr>
+</tbody>
+</table>
+<p>Small $D_0$ → narrow passband → blurrier image.</p>
+<h4 id="high-pass-filter-transfer-functions">High-Pass Filter Transfer Functions</h4>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Formula</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ideal</td>
+<td>$H = 0$ if $D \leq D_0$, else $1$</td>
+</tr>
+<tr>
+<td>Gaussian</td>
+<td>$H = 1 - e^{-D^2 / (2D_0^2)}$</td>
+</tr>
+</tbody>
+</table>
+<p>High-pass naturally zeros the DC component ($D=0 \Rightarrow H=0$), so flat regions become dark in the output.</p>
+<h4 id="band-pass-filter">Band-Pass Filter</h4>
+<p>Passes only frequencies in $[D_{\text{low}},\, D_{\text{high}}]$:</p>
+<p>$$H = \begin{cases} 1 &amp; D_{\text{low}} \leq D \leq D_{\text{high}} \ 0 &amp; \text{otherwise} \end{cases}$$</p>
+<h4 id="band-stop-notch-filter">Band-Stop (Notch) Filter</h4>
+<p>Complement of band-pass — rejects frequencies in range, useful for removing periodic noise:</p>
+<p>$$H = \begin{cases} 0 &amp; D_{\text{low}} \leq D \leq D_{\text{high}} \ 1 &amp; \text{otherwise} \end{cases}$$</p>
+<hr />
+<h3 id="56-hybrid-image-composition">5.6 Hybrid Image Composition</h3>
+<p><strong>Concept:</strong> At close viewing distance, the human visual system perceives high-frequency detail. At far distance, low-frequency structure dominates. A hybrid image exploits this by combining:</p>
+<p>$$\text{Hybrid} = \text{LowPass}(\text{Image A},\, D_{\text{low}}) + \text{HighPass}(\text{Image B},\, D_{\text{high}})$$</p>
+<p><strong>Implementation steps:</strong></p>
+<ol>
+<li>Resize Image B to dimensions of Image A.</li>
+<li>Apply <code>FilterLowFreqFFT(lowSrc, lowCutoff, filterType)</code> → <code>lowPart</code>.</li>
+<li>Apply <code>FilterHighFreqFFT(highSrc, highCutoff, filterType)</code> → <code>highPart</code>.</li>
+<li>Blend pixel-by-pixel:</li>
+</ol>
+<pre><code class="language-cpp">for (long i = 0; i &lt; n; ++i) {
+    int val = (int)lpData[i] + (int)hpData[i];
+    dst[i] = Clamp(val);
+}
+</code></pre>
+<p><strong>UI parameters exposed to user:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Role</td>
+<td>A=Low, B=High</td>
+<td>Which image contributes low/high frequencies</td>
+</tr>
+<tr>
+<td>Filter type</td>
+<td>Gaussian</td>
+<td>Ideal (hard cutoff) or Gaussian (smooth)</td>
+</tr>
+<tr>
+<td>Low cutoff</td>
+<td>30 px</td>
+<td>Radius of low-pass passband</td>
+</tr>
+<tr>
+<td>High cutoff</td>
+<td>60 px</td>
+<td>Radius of high-pass passband</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6-history-undo-system">6. History &amp; Undo System</h2>
+<pre><code>Timeline:  Original → Filter1 → Filter2 → Filter3
+                                    ↑
+                           User selects here
+                           and applies Filter4
+                                    ↓
+New Timeline: Original → Filter1 → Filter2 → Filter4
+</code></pre>
+<p><code>PushHistory(label)</code> detects mid-stack selection and <strong>truncates the future branch</strong> before appending the new snapshot. This prevents logical inconsistencies (cannot "undo" to a state that was derived from a different edit path).</p>
+<pre><code class="language-cpp">if (currentIdx &lt; m_historyImages.size() - 1) {
+    // Erase everything after currentIdx
+    m_historyImages.erase(begin + currentIdx + 1, end);
+    m_historyLabels.erase(begin + currentIdx + 1, end);
+    // Rebuild listbox to reflect truncation
+}
+m_historyImages.push_back(snapshot.Copy());
+</code></pre>
+<hr />
+<h2 id="7-live-histogram-panel">7. Live Histogram Panel</h2>
+<p>The <code>HistogramPanel</code> re-renders on every <code>Update()</code> call:</p>
+<ol>
+<li><strong>Count frequencies:</strong> For each pixel, increment <code>hist[R]++</code>, <code>hist[G]++</code>, <code>hist[B]++</code>.</li>
+<li><strong>Find peak:</strong> <code>maxCount = max(hist[0..255])</code>.</li>
+<li><strong>Draw bars:</strong> Normalise bar height to panel height. Red, green, blue bars side-by-side per intensity value.</li>
+<li><strong>Draw CDF:</strong> Smooth the histogram with a sliding window of ±5, accumulate, and draw as a white overlay curve.</li>
+</ol>
+<p>The panel's minimum size is set to 220×220 px; it grows proportionally in full-screen mode alongside the sidebar's flex sizer.</p>
+<hr />
+<h2 id="8-test-cases-with-visual-results">8. Test Cases with Visual Results</h2>
+<h3 id="81-edge-detection-tests">8.1 Edge Detection Tests</h3>
+<p><strong>Input image (original):</strong></p>
+<p><img alt="Original" src="DOC/low_contrast_images/original.png" /></p>
+<hr />
+<p><strong>Sobel Edge Detection</strong> — detects both horizontal and vertical edges with strong central weighting:</p>
+<p><img alt="Sobel" src="DOC/edge/sobel.png" /></p>
+<hr />
+<p><strong>Prewitt Edge Detection</strong> — similar to Sobel but with uniform kernel weights, slightly less noise-robust:</p>
+<p><img alt="Prewitt" src="DOC/edge/prewitt.png" /></p>
+<hr />
+<p><strong>Roberts Cross Edge Detection</strong> — diagonal difference operator, very sharp but sensitive to noise:</p>
+<p><img alt="Roberts" src="DOC/edge/roberts.png" /></p>
+<hr />
+<p><strong>Canny Edge Detection (OpenCV)</strong> — multi-stage pipeline produces clean, thin, connected edges:</p>
+<p><img alt="Canny" src="DOC/edge/canny.png" /></p>
+<hr />
+<h3 id="82-noise-tests">8.2 Noise Tests</h3>
+<p><strong>Original Image (no noise):</strong></p>
+<p><img alt="Original" src="DOC/noise/original.png" /></p>
+<hr />
+<p><strong>Uniform Noise</strong> — adds a uniformly distributed random offset $\in [\text{low}, \text{high}]$ to each channel:</p>
+<p><img alt="Uniform Noise" src="DOC/noise/uniform.png" /></p>
+<hr />
+<p><strong>Gaussian Noise</strong> — adds noise drawn from $\mathcal{N}(\mu, \sigma^2)$; higher $\sigma$ produces more severe degradation:</p>
+<p><img alt="Gaussian Noise" src="DOC/noise/gauss.png" /></p>
+<hr />
+<p><strong>Salt &amp; Pepper Noise</strong> — randomly sets a fraction of pixels to pure white (255) or pure black (0):</p>
+<p><img alt="Salt and Pepper Noise" src="DOC/noise/salt &amp; pepper.png" /></p>
+<hr />
+<h3 id="83-histogram-tests">8.3 Histogram Tests</h3>
+<p><strong>RGB Histogram</strong> — displays per-channel (R, G, B) intensity distribution with CDF overlay:</p>
+<p><img alt="RGB Histogram" src="DOC/histogram/RGB.png" /></p>
+<hr />
+<p><strong>Grayscale Histogram</strong> — single-channel intensity distribution after grayscale conversion:</p>
+<p><img alt="Grayscale Histogram" src="DOC/histogram/gray.png" /></p>
+<hr />
+<p><strong>Equalization</strong> — before (low-contrast) vs. after equalization (enhanced contrast):</p>
+<table>
+<thead>
+<tr>
+<th>Before</th>
+<th>After</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img alt="Low Contrast" src="DOC/low_contrast_images/original.png" /></td>
+<td><img alt="Equalized" src="DOC/low_contrast_images/equalize.png" /></td>
+</tr>
+</tbody>
+</table>
+<p>The CDF mapping redistributes pixel intensities to be as uniform as possible, visually "stretching" the contrast across the full 0–255 range.</p>
+<hr />
+<h3 id="84-frequency-filter-tests">8.4 Frequency Filter Tests</h3>
+<p><strong>Low-Pass FFT Filter</strong> (Gaussian, $D_0 = 30$) — removes high-frequency details, resulting in smooth blur while preserving overall structure:</p>
+<p><img alt="Low Pass Filter" src="DOC/Low and High pass filters/low.png" /></p>
+<hr />
+<p><strong>High-Pass FFT Filter</strong> (Gaussian, $D_0 = 30$) — removes low-frequency content, leaving only fine edges and textures; flat regions appear dark:</p>
+<p><img alt="High Pass Filter" src="DOC/Low and High pass filters/high.png" /></p>
+<hr />
+<h3 id="85-hybrid-image-test">8.5 Hybrid Image Test</h3>
+<p><strong>Source Image A</strong> (contributes low-frequency content — viewed from far away):</p>
+<p><img alt="Image A" src="DOC/hyprid/A.jpeg" /></p>
+<p><strong>Source Image B</strong> (contributes high-frequency content — visible up close):</p>
+<p><img alt="Image B" src="DOC/hyprid/B.jpeg" /></p>
+<p><strong>Hybrid Result:</strong></p>
+<p>$$\text{Hybrid} = \text{LowPass}(A,\; D_0 = 30) + \text{HighPass}(B,\; D_0 = 60)$$</p>
+<p><img alt="Hybrid Image" src="DOC/hyprid/hyprid.png" /></p>
+<blockquote>
+<p><strong>How to observe:</strong> View the hybrid image from a normal screen distance to see Image B's fine details. Step back or squint to see Image A's overall structure emerge.</p>
+</blockquote>
+<hr />
+<h2 id="9-build-run-instructions">9. Build &amp; Run Instructions</h2>
+<h3 id="prerequisites">Prerequisites</h3>
+<table>
+<thead>
+<tr>
+<th>Dependency</th>
+<th>Ubuntu/Debian Install</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>C++17 compiler (GCC / Clang)</td>
+<td><code>sudo apt install build-essential</code></td>
+</tr>
+<tr>
+<td>CMake ≥ 3.10</td>
+<td><code>sudo apt install cmake</code></td>
+</tr>
+<tr>
+<td>wxWidgets 3.0+</td>
+<td><code>sudo apt install libwxgtk3.0-gtk3-dev</code></td>
+</tr>
+<tr>
+<td>OpenCV</td>
+<td><code>sudo apt install libopencv-dev</code></td>
+</tr>
+<tr>
+<td>FFTW3</td>
+<td><code>sudo apt install libfftw3-dev</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="build">Build</h3>
+<pre><code class="language-bash">git clone https://github.com/youssefdaoud133/Computer-Vision-ImageProcessor.git
+cd Computer-Vision-ImageProcessor
+cmake -B build
+cmake --build build
+</code></pre>
+<h3 id="run">Run</h3>
+<pre><code class="language-bash">./build/ImageProcessor
+</code></pre>
+<h3 id="using-the-application">Using the Application</h3>
+<ol>
+<li><strong>Upload Images</strong> — click "Upload Images", select one or more files; each opens in a dedicated window.</li>
+<li><strong>Apply Filters</strong> — use toolbar buttons in any <code>ImageFrame</code>.</li>
+<li><strong>Undo</strong> — select any previous entry in the History sidebar to restore that state.</li>
+<li><strong>Hybrid Image</strong> — click "Hybrid Image" on the main window, follow the three-step guided flow.</li>
+</ol>
+<hr />
+<h2 id="10-developer-notes-golden-rules">10. Developer Notes &amp; Golden Rules</h2>
+<ol>
+<li>
+<p><strong>Strictly ASCII in UI strings</strong> — avoid Unicode symbols (σ, etc.) in <code>wxString::Format()</code>. Some Linux locales cause library-level crashes on non-ASCII format strings.</p>
+</li>
+<li>
+<p><strong>Stateless Filtering</strong> — all algorithm logic stays in <code>Filtering.cpp</code> with no UI references. UI logic stays in <code>ImageFrame.cpp</code>. Never mix.</p>
+</li>
+<li>
+<p><strong>Always deep-copy before modifying</strong> — use <code>image.Copy()</code> before calling <code>image.GetData()</code> in any write path. <code>wxImage</code> is reference-counted; modifying shared data corrupts history snapshots.</p>
+</li>
+<li>
+<p><strong>FFTW normalisation</strong> — FFTW's IDFT does NOT normalise by N automatically. Always divide output by N:
+   <code>cpp
+   resultData[i] = in[i][0] / N;</code></p>
+</li>
+<li>
+<p><strong>Memory cleanup order (FFTW)</strong> — always destroy plans before freeing buffers:
+   <code>cpp
+   fftw_destroy_plan(forward);
+   fftw_destroy_plan(inverse);
+   fftw_free(in);
+   fftw_free(out);
+   fftw_free(filtered);</code></p>
+</li>
+<li>
+<p><strong>After every filter</strong> — call both <code>RefreshHistogram()</code> and <code>PushHistory()</code> to keep sidebar and undo stack in sync.</p>
+</li>
+<li>
+<p><strong>Odd kernel sizes</strong> — all spatial convolution kernels must be odd-sized. Both <code>FilterGaussian</code> and <code>FilterMedian</code> enforce this with <code>if (kernelSize % 2 == 0) kernelSize++</code>.</p>
+</li>
+</ol>
+<hr />
+<p><em>Documentation prepared by the team — SBME Computer Vision, Task 1 — March 2026.</em></p>
+</body>
+</html>

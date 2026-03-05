@@ -13,8 +13,12 @@ endif()
 # Find OpenCV
 find_package(OpenCV REQUIRED)
 
+# Find FFTW3
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(FFTW3 REQUIRED fftw3)
+
 # Include directories
-include_directories(include ${wxWidgets_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
+include_directories(include ${wxWidgets_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS} ${FFTW3_INCLUDE_DIRS})
 
 # Source files
 file(GLOB SOURCES "src/*.cpp")
@@ -23,4 +27,4 @@ file(GLOB SOURCES "src/*.cpp")
 add_executable(ImageProcessor ${SOURCES})
 
 # Link libraries
-target_link_libraries(ImageProcessor ${wxWidgets_LIBRARIES} ${OpenCV_LIBS})
+target_link_libraries(ImageProcessor ${wxWidgets_LIBRARIES} ${OpenCV_LIBS} ${FFTW3_LIBRARIES})

@@ -6,6 +6,7 @@
 #include <numeric>
 #include <random>
 #include <complex>
+#include <fftw3.h>
 // OpenCV for Canny and noise RNG
 #include <opencv2/opencv.hpp>
 
@@ -577,95 +578,93 @@ wxImage Filtering::FilterMedian(const wxImage& image, int kernelSize) {
 // ──────────────────────────────────────────────────────────────────────────────
 wxImage Filtering::FilterLowFreqFFT(const wxImage& image, double cutoffFreq, int filterType) {
     if (!image.IsOk()) return wxImage();
-    
+
     int width, height;
     double* imageData = ImageToDoubleArray(image, width, height);
     int N = width * height;
-    
+
     // Allocate FFT arrays
-    fftw_complex* in = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
-    fftw_complex* out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
-    fftw_complex* filter = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
-    
-    // Prepare input: copy image data to complex array
+    fftw_complex* in       = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
+    fftw_complex* out      = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
+    fftw_complex* filtered = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
+
     for (int i = 0; i < N; i++) {
-        in[i][0] = imageData[i];  // Real part
-        in[i][1] = 0.0;            // Imaginary part
+        in[i][0] = imageData[i];
+        in[i][1] = 0.0;
     }
-    
-    // Create FFT plans
-    fftw_plan forward = fftw_plan_dft_2d(height, width, in, out, 
+
+    // Forward FFT: image → frequency domain
+    fftw_plan forward = fftw_plan_dft_2d(height, width, in, out,
                                           FFTW_FORWARD, FFTW_ESTIMATE);
-    fftw_plan inverse = fftw_plan_dft_2d(height, width, filter, in, 
+    // Inverse FFT: filtered spectrum → spatial domain
+    fftw_plan inverse = fftw_plan_dft_2d(height, width, filtered, in,
                                           FFTW_BACKWARD, FFTW_ESTIMATE);
-    
-    // Step 1: Forward FFT - transform image to frequency domain
     fftw_execute(forward);
-    
-    // Step 2: Create and apply low-pass filter in frequency domain
-    
-    // Center coordinates for frequency shifting
-    int centerY = height / 2;
-    int centerX = width / 2;
-    
+
+    // ── Apply circular low-pass mask ──────────────────────────────────────────
+    // FFTW places DC at (0,0).  Negative frequencies occupy the right/bottom
+    // half of the array, so we "wrap" the index to get the true distance from DC.
+    //
+    //   fx = x  if x ≤ width/2,  else  x − width
+    //   fy = y  if y ≤ height/2, else  y − height
+    //   D  = sqrt(fx² + fy²)  — radius in frequency-grid pixels
+    //
+    // Filter options:
+    //   0 – Ideal (hard circle): H = 1 inside cutoff, 0 outside
+    //   1 – Gaussian (soft circle): H = exp(−D²/(2·D0²))
+    //       The lower the cutoff D0, the more aggressively high freqs are
+    //       suppressed → blurrier result in the spatial domain.
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
             int idx = y * width + x;
-            
-            // Calculate distance from center in frequency domain
-            // Shift coordinates so center is (0,0)
-            int shiftedY = y - centerY;
-            int shiftedX = x - centerX;
-            double D = sqrt(shiftedX * shiftedX + shiftedY * shiftedY);
-            
-            // Calculate filter response H(u,v)
+
+            // Wrapped frequency coordinates — distance from DC
+            int fx = (x <= width  / 2) ? x : x - width;
+            int fy = (y <= height / 2) ? y : y - height;
+            double D = sqrt((double)(fx * fx + fy * fy));
+
+            // Decompose into magnitude and phase
+            double re  = out[idx][0];
+            double im  = out[idx][1];
+            double mag = sqrt(re * re + im * im);
+            double phi = atan2(im, re);
+
+            // Transfer function H(D)
             double H;
-            
-            switch (filterType) {
-                case 0: // Ideal Low-Pass Filter
-                    H = (D <= cutoffFreq) ? 1.0 : 0.0;
-                    break;
-                    
-                case 1: // Butterworth Low-Pass Filter (order n=2)
-                    {
-                        int n = 2; // Filter order
-                        H = 1.0 / (1.0 + pow(D / cutoffFreq, 2 * n));
-                    }
-                    break;
-                    
-                case 2: // Gaussian Low-Pass Filter
-                default:
-                    H = exp(-D * D / (2.0 * cutoffFreq * cutoffFreq));
-                    break;
+            if (filterType == 0) {
+                // Ideal low-pass — hard circular cutoff
+                H = (D <= cutoffFreq) ? 1.0 : 0.0;
+            } else {
+                // Gaussian low-pass — smooth circular transition
+                // Lower cutoff → narrower passband → blurrier image
+                H = exp(-D * D / (2.0 * cutoffFreq * cutoffFreq));
             }
-            
-            // Apply filter: G(u,v) = F(u,v) * H(u,v)
-            filter[idx][0] = out[idx][0] * H;
-            filter[idx][1] = out[idx][1] * H;
+
+            // Reconstruct filtered complex coefficient
+            double newMag       = mag * H;
+            filtered[idx][0]    = newMag * cos(phi);
+            filtered[idx][1]    = newMag * sin(phi);
         }
     }
-    
-    // Step 3: Inverse FFT - transform back to spatial domain
+
+    // Inverse FFT → spatial domain
     fftw_execute(inverse);
-    
-    // Step 4: Normalize and extract real part
+
+    // Extract real part; divide by N (FFTW is un-normalised)
     double* resultData = new double[N];
-    for (int i = 0; i < N; i++) {
-        resultData[i] = in[i][0] / N; // FFTW doesn't normalize by default
-    }
-    
-    // Convert back to wxImage
+    for (int i = 0; i < N; i++)
+        resultData[i] = in[i][0] / N;
+
     wxImage result = DoubleArrayToImage(resultData, width, height);
-    
-    // Cleanup
+
     delete[] imageData;
     delete[] resultData;
     fftw_destroy_plan(forward);
     fftw_destroy_plan(inverse);
     fftw_free(in);
     fftw_free(out);
-    fftw_free(filter);
-    
+    fftw_free(filtered);
+
     return result;
 }
 
@@ -688,98 +687,91 @@ wxImage Filtering::FilterLowFreqFFT(const wxImage& image, double cutoffFreq, int
 // ──────────────────────────────────────────────────────────────────────────────
 wxImage Filtering::FilterHighFreqFFT(const wxImage& image, double cutoffFreq, int filterType) {
     if (!image.IsOk()) return wxImage();
-    
+
     int width, height;
     double* imageData = ImageToDoubleArray(image, width, height);
     int N = width * height;
-    
+
     // Allocate FFT arrays
-    fftw_complex* in = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
-    fftw_complex* out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
-    fftw_complex* filter = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
-    
-    // Prepare input
+    fftw_complex* in       = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
+    fftw_complex* out      = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
+    fftw_complex* filtered = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
+
     for (int i = 0; i < N; i++) {
         in[i][0] = imageData[i];
         in[i][1] = 0.0;
     }
-    
-    // Create FFT plans
-    fftw_plan forward = fftw_plan_dft_2d(height, width, in, out, 
+
+    // Forward FFT: image → frequency domain
+    fftw_plan forward = fftw_plan_dft_2d(height, width, in, out,
                                           FFTW_FORWARD, FFTW_ESTIMATE);
-    fftw_plan inverse = fftw_plan_dft_2d(height, width, filter, in, 
+    // Inverse FFT: filtered spectrum → spatial domain
+    fftw_plan inverse = fftw_plan_dft_2d(height, width, filtered, in,
                                           FFTW_BACKWARD, FFTW_ESTIMATE);
-    
-    // Forward FFT
     fftw_execute(forward);
-    
-    // Create and apply high-pass filter
-    int centerY = height / 2;
-    int centerX = width / 2;
-    
+
+    // ── Apply circular high-pass mask ──────────────────────────────────────────
+    // High-pass = complement of low-pass:
+    //   Ideal Gaussian:  H_hp = 1 − H_lp
+    //
+    // The DC component (D=0) is always zeroed (H=0) since it carries only
+    // the mean brightness, not edge information.
+    //
+    // After IDFT, DoubleArrayToImage normalises the result to [0,255]:
+    // flat regions (near-zero after high-pass) map to dark, edges to bright.
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
             int idx = y * width + x;
-            int shiftedY = y - centerY;
-            int shiftedX = x - centerX;
-            double D = sqrt(shiftedX * shiftedX + shiftedY * shiftedY);
-            
-            // Calculate high-pass filter response
+
+            // Wrapped frequency coordinates — distance from DC
+            int fx = (x <= width  / 2) ? x : x - width;
+            int fy = (y <= height / 2) ? y : y - height;
+            double D = sqrt((double)(fx * fx + fy * fy));
+
+            // Decompose into magnitude and phase
+            double re  = out[idx][0];
+            double im  = out[idx][1];
+            double mag = sqrt(re * re + im * im);
+            double phi = atan2(im, re);
+
+            // Transfer function H(D)
             double H;
-            
-            switch (filterType) {
-                case 0: // Ideal High-Pass Filter
-                    H = (D > cutoffFreq) ? 1.0 : 0.0;
-                    break;
-                    
-                case 1: // Butterworth High-Pass Filter
-                    {
-                        int n = 2;
-                        H = 1.0 / (1.0 + pow(cutoffFreq / D, 2 * n));
-                        if (D == 0) H = 0; // DC component (zero frequency)
-                    }
-                    break;
-                    
-                case 2: // Gaussian High-Pass Filter
-                default:
-                    H = 1.0 - exp(-D * D / (2.0 * cutoffFreq * cutoffFreq));
-                    break;
+            if (filterType == 0) {
+                // Ideal high-pass — hard circular cutoff
+                H = (D > cutoffFreq) ? 1.0 : 0.0;
+            } else {
+                // Gaussian high-pass — smooth circular transition
+                // H_hp = 1 − H_lp, naturally zeroes DC (D=0 → H=0)
+                H = 1.0 - exp(-D * D / (2.0 * cutoffFreq * cutoffFreq));
             }
-            
-            // Apply filter
-            filter[idx][0] = out[idx][0] * H;
-            filter[idx][1] = out[idx][1] * H;
+
+            // Reconstruct filtered complex coefficient
+            double newMag    = mag * H;
+            filtered[idx][0] = newMag * cos(phi);
+            filtered[idx][1] = newMag * sin(phi);
         }
     }
-    
-    // Inverse FFT
+
+    // Inverse FFT → spatial domain
     fftw_execute(inverse);
-    
-    // Extract and normalize
+
+    // Extract real part; divide by N (FFTW is un-normalised)
     double* resultData = new double[N];
-    for (int i = 0; i < N; i++) {
+    for (int i = 0; i < N; i++)
         resultData[i] = in[i][0] / N;
-    }
-    
-    // Convert to image and add 128 shift for visualization
+
+    // DoubleArrayToImage normalises to [0,255]: edges become bright,
+    // flat regions become dark — the expected sharp/edge-only appearance.
     wxImage result = DoubleArrayToImage(resultData, width, height);
-    
-    // Add 128 shift to visualize both positive and negative frequencies
-    unsigned char* pixels = result.GetData();
-    for (int i = 0; i < width * height; i++) {
-        int val = pixels[i * 3] + 128;
-        pixels[i * 3] = pixels[i * 3 + 1] = pixels[i * 3 + 2] = Clamp(val);
-    }
-    
-    // Cleanup
+
     delete[] imageData;
     delete[] resultData;
     fftw_destroy_plan(forward);
     fftw_destroy_plan(inverse);
     fftw_free(in);
     fftw_free(out);
-    fftw_free(filter);
-    
+    fftw_free(filtered);
+
     return result;
 }
 
@@ -1050,40 +1042,40 @@ wxImage Filtering::VisualizeFrequencySpectrum(const wxImage& image) {
  */
 
 
-// Hybrid Image: low-freq content of one image + high-freq content of another
-// Both images are resized to the same dimensions before mixing.
+// Hybrid Image: low-freq content of one image + high-freq content of another.
+// Uses FFT-based low-pass and high-pass filters.
+// @param lowCutoff   Cutoff radius (freq-grid pixels) for the low-pass filter.
+// @param highCutoff  Cutoff radius (freq-grid pixels) for the high-pass filter.
+// @param filterType  0 = Ideal, 1 = Gaussian.
 wxImage Filtering::HybridImage(const wxImage& lowSrc, const wxImage& highSrc,
-                                int kernelSize, double sigma) {
+                                double lowCutoff, double highCutoff, int filterType) {
     if (!lowSrc.IsOk() || !highSrc.IsOk()) return wxImage();
 
     // Use the dimensions of the first (low) image as the target size
     int w = lowSrc.GetWidth();
     int h = lowSrc.GetHeight();
 
-    // Resize high-freq source to match
+    // Resize high-freq source to match low source dimensions
     wxImage highResized = highSrc.Scale(w, h, wxIMAGE_QUALITY_HIGH);
 
-    // Compute the low-frequency component of the low source
-    wxImage lowPart = FilterGaussian(lowSrc, kernelSize, sigma);
+    // Low-frequency component of lowSrc via FFT low-pass filter
+    wxImage lowPart = FilterLowFreqFFT(lowSrc, lowCutoff, filterType);
     if (!lowPart.IsOk()) return wxImage();
 
-    // Compute the high-frequency component of the high source
-    wxImage highBlurred = FilterGaussian(highResized, kernelSize, sigma);
-    if (!highBlurred.IsOk()) return wxImage();
+    // High-frequency component of highSrc via FFT high-pass filter
+    wxImage highPart = FilterHighFreqFFT(highResized, highCutoff, filterType);
+    if (!highPart.IsOk()) return wxImage();
 
     long n = (long)w * h * 3;
-
-    unsigned char* lpData   = lowPart.GetData();
-    unsigned char* origHigh = highResized.GetData();
-    unsigned char* hpBlur   = highBlurred.GetData();
+    unsigned char* lpData = lowPart.GetData();
+    unsigned char* hpData = highPart.GetData();
 
     wxImage result(w, h);
     unsigned char* dst = result.GetData();
 
     for (long i = 0; i < n; ++i) {
-        // hybrid = low_component + (high_original - high_blurred)
-        int val = static_cast<int>(lpData[i])
-                + (static_cast<int>(origHigh[i]) - static_cast<int>(hpBlur[i]));
+        // Blend: low-frequency base + high-frequency detail
+        int val = static_cast<int>(lpData[i]) + static_cast<int>(hpData[i]);
         dst[i] = Clamp(val);
     }
     return result;

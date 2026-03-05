@@ -554,18 +554,24 @@ void ImageFrame::OnLowPassMedian(wxCommandEvent&) {
 void ImageFrame::OnFilterLowFreq(wxCommandEvent&) {
     if (!PanelReady()) return;
 
-    wxDialog dlg(this, wxID_ANY, "Low-Frequency Filter",
-                 wxDefaultPosition, wxSize(300, 180));
+    wxDialog dlg(this, wxID_ANY, "Low-Frequency Filter (FFT)",
+                 wxDefaultPosition, wxSize(340, 200));
     wxBoxSizer* s = new wxBoxSizer(wxVERTICAL);
     wxFlexGridSizer* gs = new wxFlexGridSizer(2, 2, 6, 10);
     gs->AddGrowableCol(1);
 
-    wxTextCtrl* tcSize  = new wxTextCtrl(&dlg, wxID_ANY, "5");
-    wxTextCtrl* tcSigma = new wxTextCtrl(&dlg, wxID_ANY, "2.0");
-    gs->Add(new wxStaticText(&dlg, wxID_ANY, "Kernel size (odd):"), 0, wxALIGN_CENTER_VERTICAL);
-    gs->Add(tcSize,  1, wxEXPAND);
-    gs->Add(new wxStaticText(&dlg, wxID_ANY, "Sigma:"),              0, wxALIGN_CENTER_VERTICAL);
-    gs->Add(tcSigma, 1, wxEXPAND);
+    wxTextCtrl* tcCutoff = new wxTextCtrl(&dlg, wxID_ANY, "30");
+    gs->Add(new wxStaticText(&dlg, wxID_ANY, "Cutoff frequency (px radius):"), 0, wxALIGN_CENTER_VERTICAL);
+    gs->Add(tcCutoff, 1, wxEXPAND);
+
+    wxArrayString types;
+    types.Add("Ideal");
+    types.Add("Butterworth (n=2)");
+    types.Add("Gaussian");
+    wxChoice* choiceType = new wxChoice(&dlg, wxID_ANY, wxDefaultPosition, wxDefaultSize, types);
+    choiceType->SetSelection(2); // default: Gaussian
+    gs->Add(new wxStaticText(&dlg, wxID_ANY, "Filter type:"), 0, wxALIGN_CENTER_VERTICAL);
+    gs->Add(choiceType, 1, wxEXPAND);
 
     s->Add(gs, 0, wxEXPAND | wxALL, 12);
     s->Add(dlg.CreateButtonSizer(wxOK | wxCANCEL), 0, wxEXPAND | wxALL, 8);
@@ -574,34 +580,41 @@ void ImageFrame::OnFilterLowFreq(wxCommandEvent&) {
 
     if (dlg.ShowModal() != wxID_OK) return;
 
-    long kSize = 5;
-    double sigma = 2.0;
-    tcSize->GetValue().ToLong(&kSize);
-    tcSigma->GetValue().ToDouble(&sigma);
-    kSize = std::clamp((int)kSize, 3, 31);
-    sigma = std::max(0.1, sigma);
+    double cutoff = 30.0;
+    tcCutoff->GetValue().ToDouble(&cutoff);
+    cutoff = std::max(1.0, cutoff);
+    int filterType = choiceType->GetSelection();
 
-    m_imagePanel->SetImage(Filtering::FilterLowFreq(m_imagePanel->GetCurrentImage(), (int)kSize, sigma));
+    SetStatusText("Applying FFT Low-Frequency Filter — please wait...");
+    Update();
+    m_imagePanel->SetImage(Filtering::FilterLowFreqFFT(m_imagePanel->GetCurrentImage(), cutoff, filterType));
     RefreshHistogram();
-    PushHistory(wxString::Format("LowFreq (%ldx%ld, s=%.1f)", kSize, kSize, sigma));
-    SetStatusText(wxString::Format("Applied Low-Frequency Filter (%ldx%ld, s=%.1f).", kSize, kSize, sigma));
+    const wxString typeNames[] = {"Ideal", "Butterworth", "Gaussian"};
+    PushHistory(wxString::Format("LowFreq FFT (D0=%.0f, %s)", cutoff, typeNames[filterType]));
+    SetStatusText(wxString::Format("Applied FFT Low-Frequency Filter (D0=%.0f, %s).", cutoff, typeNames[filterType]));
 }
 
 void ImageFrame::OnFilterHighFreq(wxCommandEvent&) {
     if (!PanelReady()) return;
 
-    wxDialog dlg(this, wxID_ANY, "High-Frequency Filter",
-                 wxDefaultPosition, wxSize(300, 180));
+    wxDialog dlg(this, wxID_ANY, "High-Frequency Filter (FFT)",
+                 wxDefaultPosition, wxSize(340, 200));
     wxBoxSizer* s = new wxBoxSizer(wxVERTICAL);
     wxFlexGridSizer* gs = new wxFlexGridSizer(2, 2, 6, 10);
     gs->AddGrowableCol(1);
 
-    wxTextCtrl* tcSize  = new wxTextCtrl(&dlg, wxID_ANY, "5");
-    wxTextCtrl* tcSigma = new wxTextCtrl(&dlg, wxID_ANY, "2.0");
-    gs->Add(new wxStaticText(&dlg, wxID_ANY, "Kernel size (odd):"), 0, wxALIGN_CENTER_VERTICAL);
-    gs->Add(tcSize,  1, wxEXPAND);
-    gs->Add(new wxStaticText(&dlg, wxID_ANY, "Sigma:"),              0, wxALIGN_CENTER_VERTICAL);
-    gs->Add(tcSigma, 1, wxEXPAND);
+    wxTextCtrl* tcCutoff = new wxTextCtrl(&dlg, wxID_ANY, "30");
+    gs->Add(new wxStaticText(&dlg, wxID_ANY, "Cutoff frequency (px radius):"), 0, wxALIGN_CENTER_VERTICAL);
+    gs->Add(tcCutoff, 1, wxEXPAND);
+
+    wxArrayString types;
+    types.Add("Ideal");
+    types.Add("Butterworth (n=2)");
+    types.Add("Gaussian");
+    wxChoice* choiceType = new wxChoice(&dlg, wxID_ANY, wxDefaultPosition, wxDefaultSize, types);
+    choiceType->SetSelection(2); // default: Gaussian
+    gs->Add(new wxStaticText(&dlg, wxID_ANY, "Filter type:"), 0, wxALIGN_CENTER_VERTICAL);
+    gs->Add(choiceType, 1, wxEXPAND);
 
     s->Add(gs, 0, wxEXPAND | wxALL, 12);
     s->Add(dlg.CreateButtonSizer(wxOK | wxCANCEL), 0, wxEXPAND | wxALL, 8);
@@ -610,15 +623,16 @@ void ImageFrame::OnFilterHighFreq(wxCommandEvent&) {
 
     if (dlg.ShowModal() != wxID_OK) return;
 
-    long kSize = 5;
-    double sigma = 2.0;
-    tcSize->GetValue().ToLong(&kSize);
-    tcSigma->GetValue().ToDouble(&sigma);
-    kSize = std::clamp((int)kSize, 3, 31);
-    sigma = std::max(0.1, sigma);
+    double cutoff = 30.0;
+    tcCutoff->GetValue().ToDouble(&cutoff);
+    cutoff = std::max(1.0, cutoff);
+    int filterType = choiceType->GetSelection();
 
-    m_imagePanel->SetImage(Filtering::FilterHighFreq(m_imagePanel->GetCurrentImage(), (int)kSize, sigma));
+    SetStatusText("Applying FFT High-Frequency Filter — please wait...");
+    Update();
+    m_imagePanel->SetImage(Filtering::FilterHighFreqFFT(m_imagePanel->GetCurrentImage(), cutoff, filterType));
     RefreshHistogram();
-    PushHistory(wxString::Format("HighFreq (%ldx%ld, s=%.1f)", kSize, kSize, sigma));
-    SetStatusText(wxString::Format("Applied High-Frequency Filter (%ldx%ld, s=%.1f).", kSize, kSize, sigma));
+    const wxString typeNames[] = {"Ideal", "Butterworth", "Gaussian"};
+    PushHistory(wxString::Format("HighFreq FFT (D0=%.0f, %s)", cutoff, typeNames[filterType]));
+    SetStatusText(wxString::Format("Applied FFT High-Frequency Filter (D0=%.0f, %s).", cutoff, typeNames[filterType]));
 }
