@@ -11,6 +11,7 @@ if(NOT wxWidgets_LIBRARIES)
 endif()
 
 # Find OpenCV
+set(OpenCV_DIR "C:/Users/ahmed/Downloads/OpenCV-MinGW-Build-OpenCV-4.5.5-x64/OpenCV-MinGW-Build-OpenCV-4.5.5-x64")
 find_package(OpenCV REQUIRED)
 
 # Include directories
