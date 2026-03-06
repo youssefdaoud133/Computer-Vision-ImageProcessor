@@ -424,11 +424,7 @@ The panel's minimum size is set to 220×220 px; it grows proportionally in full-
 
 ### 8.1 Edge Detection Tests
 
-**Input image (original):**
 
-![Original](DOC/low_contrast_images/original.png)
-
----
 
 **Sobel Edge Detection** — detects both horizontal and vertical edges with strong central weighting:
 
